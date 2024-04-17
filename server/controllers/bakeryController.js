@@ -2,6 +2,8 @@ const Shape = require('../models/Shapes');
 const Recipe = require('../models/Recipes');
 const Inventory = require('../models/Inventory'); 
 
+
+
 // Method to add a new recipe
 exports.addRecipe = async (req, res) => {
   try {
@@ -86,6 +88,9 @@ exports.updateAddonsList = async (req, res) => {
 // Method to get all shapes
 exports.getShapes = async (req, res) => {
   try {
+
+
+
     const shapes = await Shape.find();
     res.json(shapes);
   } catch (err) {
@@ -99,7 +104,6 @@ exports.getShapeByName = async (req, res) => {
     const { shapeName } = req.params;
     const shape = await Shape.findOne({ shapeName });
     if (!shape) {
-      console.log(shapeName);
       return res.status(404).json({ message: 'Shape not found' });
     }
     res.json(shape);
@@ -123,8 +127,6 @@ exports.getShapeById = async (req, res) => {
 };
 
 //RECIPES
-
-
 
 // Method to get all recipes
 exports.getRecipes = async (req, res) => {
@@ -214,86 +216,82 @@ async function calculatePriceAndCalories(ingredients) {
         const cleanedItem = item.trim(); // Remove leading and trailing spaces
         const itemInfo = await Inventory.findOne({ item: { $regex: new RegExp(cleanedItem, 'i') } });
         if (!itemInfo) {
-          console.log(`No inventory item found for ${item}`);
+          console.log("No inventory item found for ${item}");
         } else {
           totalPrice += itemInfo.price * quantity;
           totalCalories += itemInfo.calorificValue * quantity;
         }
       } catch (err) {
-        console.error(`Error finding inventory item for ${item}: ${err.message}`);
+        console.error('Error finding inventory item for ${item}: ${err.message}');
       }
     }
   
     return { price: totalPrice, calorificValue: totalCalories };
-  }
-  
- 
-  
-  exports.abc = async (req,res) => {
-    try {
-        console.log("hi");
-      // Retrieve all recipes from the database
-      const recipes = await Recipe.find();
-  
-      // Retrieve all inventory items from the database
-      const inventoryItems = await Inventory.find();
-  
-      // Initialize a map to store the maximum number of times each recipe can be made
-      const maxRecipeCounts = new Map();
-  
-      // Iterate through each recipe and calculate the maximum number of times it can be made
-      for (const recipe of recipes) {
-        let maxCount = Infinity; // Set initial max count to infinity
-  
-        // Iterate through each ingredient in the recipe
-        for (const [item, quantity] of Object.entries(recipe.ingredients)) {
-          // Find the corresponding inventory item
-          const inventoryItem = inventoryItems.find(item => item.item === item);
-  
-          // Calculate the maximum count based on available quantity
-          if (inventoryItem) {
-            const count = Math.floor(inventoryItem.quantity / quantity);
-            if (count < maxCount) {
-              maxCount = count;
-            }
-          } else {
-            // If any ingredient is missing, this recipe cannot be made
-            maxCount = 0;
-            break;
-          }
-        }
-  
-        // Store the maximum count for this recipe
-        maxRecipeCounts.set(recipe.dishName, maxCount);
-      }
-  
-      // Calculate the total number of dishes that can be made
-      const totalDishes = Math.min(...Array.from(maxRecipeCounts.values()));
-  
-      // Initialize an object to store the quantity of each dish
-      const dishQuantities = {};
-  
-      // Iterate through each recipe and calculate the quantity of each dish
-      for (const [dishName, maxCount] of maxRecipeCounts.entries()) {
-        dishQuantities[dishName] = maxCount * totalDishes;
-      }
-  
-      // Calculate the total amount of inventory used
-      let totalInventoryUsed = 0;
-      for (const [dishName, quantity] of Object.entries(dishQuantities)) {
-        const recipe = recipes.find(recipe => recipe.dishName === dishName);
-        totalInventoryUsed += recipe.price * quantity;
-      }
-      
-      console.log(totalDishes);
-      console.log(dishQuantities);
-      console.log(totalInventoryUsed);
-      res.json({ message: 'Dummy response' });
-        //res.json(totalDishes,totalInventoryUsed);
-      return { totalDishes, dishQuantities, totalInventoryUsed };
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-      throw new Error(`Error calculating max exploitation of inventory: ${err.message}`);
-    }
   };
   
+ 
+
+
+  exports.calculateMaxExploitation = async (req, res) => {
+    try {
+        // Retrieve all recipes from the database
+        const recipes = await Recipe.find();
+        // Retrieve all inventory items from the database
+        const inventoryItems = await Inventory.find();
+        // Initialize a map to store the maximum number of times each recipe can be made
+        const maxRecipeCounts = new Map();
+
+        // Iterate through each recipe and calculate the maximum number of times it can be made
+        for (const recipe of recipes) {
+            let maxCount = Infinity; // Set initial max count to infinity
+            
+            // Iterate through each ingredient in the recipe
+            for (const [ingredient, quantity] of recipe.ingredients.entries()) {
+                // Find the corresponding inventory item
+                const inventoryItem = inventoryItems.find(invItem => invItem.item.toLowerCase() === ingredient.toLowerCase());
+                // Calculate the maximum count based on available quantity
+                if (inventoryItem) {
+                    const count = Math.floor(inventoryItem.quantity / quantity);
+                    if (count < maxCount) {
+                        maxCount = count;
+                    }
+                } else {
+                    // If any ingredient is missing, this recipe cannot be made
+                    maxCount = 0;
+                    break;
+                }
+            }
+
+            // Store the maximum count for this recipe
+            maxRecipeCounts.set(recipe.dishName, maxCount);
+        }
+
+        // Calculate the total number of dishes that can be made
+        const totalDishes = Math.min(...Array.from(maxRecipeCounts.values()));
+
+        // Initialize an object to store the quantity of each dish
+        const dishQuantities = {};
+
+        // Iterate through each recipe and calculate the quantity of each dish
+        for (const [dishName, maxCount] of maxRecipeCounts.entries()) {
+            dishQuantities[dishName] = maxCount * totalDishes;
+        }
+
+        // Calculate the total amount of inventory used
+        let totalInventoryUsed = 0;
+        for (const [dishName, quantity] of Object.entries(dishQuantities)) {
+            const recipe = recipes.find(recipe => recipe.dishName === dishName);
+            totalInventoryUsed += recipe.price * quantity;
+        }
+
+        console.log(totalDishes);
+        console.log(dishQuantities);
+        console.log(totalInventoryUsed);
+        res.status(200).json({ totalDishes, dishQuantities, totalInventoryUsed });
+        return { totalDishes, dishQuantities, totalInventoryUsed };
+
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+        throw new Error('Error calculating max exploitation of inventory: ${err.message}');
+    }
+};

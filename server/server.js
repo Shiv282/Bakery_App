@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors')
 const inventoryRoutes = require('./routes/inventoryRoutes');
 const bakeryRoutes = require('./routes/bakeryRoutes'); 
-//const orderRoutes = require('./routes/orderRoutes'); 
+const orderRoutes = require('./routes/orderRoutes'); 
 
 
 const app = express();
@@ -30,6 +30,8 @@ app.get('/', (req, res) => {
 app.use('/api/inventory', inventoryRoutes);
 
 app.use('/api/bakery',bakeryRoutes);
+
+app.use('/api/order', orderRoutes);
 
 //app.use('/api/order',orderRoutes);
 
