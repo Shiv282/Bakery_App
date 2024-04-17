@@ -6,11 +6,13 @@ import axios from "axios";
 const adds = ["Nuts", "Choco chips", "cherries", "sprinklers"];
 
 export default function Home() {
+  const [ingredients, setIngredients] = useState();
+  const [initialIngredients, setinitialIngredients] = useState();
   const [title, setTitle] = useState("Welcome");
   const [secondTitle, setSecondTitle] = useState("");
   const [thirdTitle, setThirdTitle] = useState("");
   const [fourthTitle, setFourthTitle] = useState("");
-  const [eatables, setEatables] = useState([]);
+  const [eatables, setEatables] = useState();
   const [shapes, setShapes] = useState([]);
   const [addons, setAddons] = useState([]);
   const [cart, setCart] = useState([]);
@@ -21,22 +23,79 @@ export default function Home() {
   const [activeAddonPrice, setActiveAddonPrice] = useState(0);
   const [activeEatable, setActiveEatable] = useState();
   const [activeShape, setActiveShape] = useState();
-  const [activeAddon, setActiveAddon] = useState();
+  const [activeAddon, setActiveAddon] = useState([]);
   const [itemCount, setItemCount] = useState(0);
   const [itemPrice, setItemPrice] = useState(0);
+  const [calories, setCalories] = useState(0)
+  const [time, setTime] = useState(0);
 
-  let timeoutId;
+  useEffect(() => {
+    async function fetchData() {
+      const response = await axios({
+        method: "GET",
+        url: "http://localhost:8000/api/inventory/",
+      });
+      console.log(response.data);
+      setIngredients(response.data);
+
+      setinitialIngredients(response.data);
+    }
+    fetchData();
+  }, []);
+
+  function checkIfShapeShouldBeDisabled(shape) {
+    for (const value of eatables) {
+      if (value.dishName == activeEatable) {
+        if (value.shapes.includes(shape.shapeName)) {
+          console.log(shape.shapeName);
+        } else {
+          setTimeout(() => {
+            console.log(shape.shapeName);
+            document
+              .getElementById(shape.shapeName)
+              .setAttribute("disabled", "true");
+            document
+              .getElementById(shape.shapeName)
+              .setAttribute("title", "Reciepe doesnt support this shape");
+          }, 500);
+        }
+      }
+    }
+  }
+
+  const checkIfEatableShouldBeDisabled = (eatable) => {
+    for (const [eatableIngredient, quantity] of Object.entries(
+      eatable.ingredients
+    )) {
+      ingredients.map((ingredient) => {
+        if (ingredient.item == eatableIngredient) {
+          if (quantity > ingredient.quantity) {
+            setTimeout(() => {
+              document
+                .getElementById(eatable.dishName)
+                .setAttribute("disabled", "true");
+              document
+                .getElementById(eatable.dishName)
+                .setAttribute("title", "Ingredients not sufficient");
+            }, 500);
+          }
+        }
+      });
+    }
+  };
 
   useEffect(() => {
     handleInputChange();
   }, [itemCount]);
 
-  useEffect(()=>{
-    const total = Object.values(cart).reduce((acc, item) => acc + item.totalPrice, 0);
-                    console.log("total",total);
-                    setGrandTotal(total);
-  },[cart]);
-  
+  useEffect(() => {
+    const total = Object.values(cart).reduce(
+      (acc, item) => acc + item.totalPrice,
+      0
+    );
+    console.log("total", total);
+    setGrandTotal(total);
+  }, [cart]);
 
   const handleInputChange = () => {
     console.log("ic", itemCount);
@@ -48,11 +107,30 @@ export default function Home() {
   };
 
   return (
-    <main className="bg-gradient-to-r from-purple-500 to-pink-500 flex min-h-screen flex-col items-center justify-between p-24">
+    <main className="bg-gradient-to-r from-purple-500 to-pink-500 flex min-h-screen flex-col items-center justify-between p-8">
       <div className="w-full flex flex-row">
         <div className="w-3/4 mr-3 relative">
           <div className="absolute inset-0 bg-gray-200 bg-opacity-50 z-0 rounded-xl"></div>
           <div className="relative z-10 text-center min-h-screen place-content-center">
+            {title != "Welcome" ? (
+              <h1 className="text-black text-center font-black text-2xl mb-3">
+                Ingredients
+              </h1>
+            ) : (
+              <div></div>
+            )}
+            {eatables && ingredients && (
+              <div className="mb-10 grid grid-cols-4 gap-3">
+                {ingredients.map((ingredient, index) => (
+                  <div className="bg-gray-100 p-2 rounded-md" key={index}>
+                    <p className="text-black text-center">
+                      {ingredient.item} : {ingredient.quantity}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <h1 className="text-black text-center font-black text-2xl">
               {title}
             </h1>
@@ -67,19 +145,39 @@ export default function Home() {
                 eatables.map((eatable, index) => (
                   <div key={index}>
                     <button
-                      className="bg-green-600 hover:bg-green-500 text-white py-4 px-8 rounded-lg mt-2"
+                      id={eatable.dishName}
+                      className={
+                        "bg-gray-600 hover:bg-green-500 text-white py-4 px-8 rounded-lg mt-2 disabled:bg-red-600 disabled:cursor-not-allowed"
+                      }
                       key={index}
-                      onClick={() => {
+                      disabled={checkIfEatableShouldBeDisabled(eatable)}
+                      onClick={async () => {
                         setSecondTitle("Choose Shape");
+                        setCalories(eatable.calorieValue);
+                        setTime(eatable.cookingTime);
                         setActiveEatable(eatable.dishName);
                         setActiveEatablePrice(eatable.price);
                         setAddons([]);
                         setThirdTitle("");
                         setFourthTitle("");
-                        setShapes(eatable.shapes);
+                        const response = await axios({
+                          method: "GET",
+                          url: "http://localhost:8000/api/bakery/shapes",
+                        });
+                        console.log(response.data);
 
+                        setShapes(response.data);
                         setActiveAddonPrice(0);
                         setActiveShapePrice(0);
+                        document
+                          .getElementById(eatable.dishName)
+                          .setAttribute(
+                            "class",
+                            "bg-green-600 hover:bg-green-500 text-white py-4 px-8 rounded-lg mt-2 disabled:bg-red-600 disabled:cursor-not-allowed"
+                          );
+                        document
+                          .getElementById(eatable.dishName)
+                          .setAttribute("title", "Selected");
                       }}
                     >
                       {eatable.dishName}
@@ -96,26 +194,30 @@ export default function Home() {
                 shapes.map((shape, index) => (
                   <div key={index}>
                     <button
-                      className="bg-green-600 hover:bg-green-500 text-white py-4 px-8 rounded-lg mt-2"
+                      id={shape.shapeName}
+                      className="bg-gray-600 hover:bg-green-500 text-white py-4 px-8 rounded-lg mt-2 disabled:bg-red-600 disabled:cursor-not-allowed"
                       key={index}
+                      disabled={checkIfShapeShouldBeDisabled(shape)}
                       onClick={async () => {
                         setThirdTitle("Choose Add-ons");
-                        setActiveShape(shape);
+                        setActiveShape(shape.shapeName);
+                        setTime((prevtime)=> prevtime + shape.timeDuration);
                         setFourthTitle("");
-                        const response = await axios({
-                          method: "GET",
-                          url:
-                            "http://localhost:8000/api/bakery/shapes/name/" +
-                            shape,
-                        });
-                        console.log(response.data.addonsList);
-                        setActiveShapePrice(response.data.priceForShape);
-                        setAddons(response.data.addonsList);
-
+                        setActiveShapePrice(shape.priceForShape);
+                        setAddons(shape.addonsList);
                         setActiveAddonPrice(0);
+                        document
+                          .getElementById(shape.shapeName)
+                          .setAttribute(
+                            "class",
+                            "bg-green-600 hover:bg-green-500 text-white py-4 px-8 rounded-lg mt-2 disabled:bg-red-600 disabled:cursor-not-allowed"
+                          );
+                        document
+                          .getElementById(shape.shapeName)
+                          .setAttribute("title", "Selected");
                       }}
                     >
-                      {shape}
+                      {shape.shapeName}
                     </button>
                   </div>
                 ))}
@@ -129,15 +231,39 @@ export default function Home() {
                 addons.map((addon, index) => (
                   <div key={index}>
                     <button
-                      className="bg-green-600 hover:bg-green-500 text-white py-4 px-8 rounded-lg mt-2"
+                      id={addon}
+                      className="bg-gray-600 hover:bg-green-500 text-white py-4 px-8 rounded-lg mt-2 disabled:bg-green-600 disabled:cursor-not-allowed"
                       key={index}
                       onClick={() => {
                         setFourthTitle("Enter Quantity");
-                        setActiveAddon(addon);
-                        setActiveAddonPrice(addon.price);
+                        setActiveAddon((prevActiveAddons) => [
+                          ...prevActiveAddons,
+                          addon,
+                        ]);
+                        setCalories((prevCalorie)=>{
+                          for (const val of ingredients) {
+                            if (val.item == addon) {
+                              return val.calorificValue * 10 + prevCalorie;
+                            }
+                          }
+                        })
+                        setActiveAddonPrice((prevPrice) => {
+                          for (const val of ingredients) {
+                            if (val.item == addon) {
+                              return val.price * 10 + prevPrice;
+                            }
+                          }
+                        });
+
+                        document
+                          .getElementById(addon)
+                          .setAttribute("title", "Selected");
+                        document
+                          .getElementById(addon)
+                          .setAttribute("disabled", "true");
                       }}
                     >
-                      {addon}
+                      {addon} +
                     </button>
                   </div>
                 ))}
@@ -185,20 +311,32 @@ export default function Home() {
                 <h1 className="text-black text-center font-black text-2xl">
                   Total cost : {itemPrice}
                 </h1>
+                <h1 className="text-black text-center font-black text-2xl">
+                  Calorie for 1 : {calories}
+                </h1>
+                <h1 className="text-black text-center font-black text-2xl">
+                  Total calories : {calories * itemCount}
+                </h1>
+                <h1 className="text-black text-center font-black text-2xl">
+                  Total time : {time}
+                </h1>
 
                 <button
                   className="bg-green-600 hover:bg-green-500 text-white py-4 px-8 rounded-lg mt-2"
                   onClick={() => {
                     var cartItem = {
-                      eatable: activeEatable,
+                      orderId: Math.random(),
+                      dish: activeEatable,
                       shape: activeShape,
-                      addon: activeAddon,
-                      quantity: itemCount,
+                      addons: activeAddon,
+                      noOfPieces: itemCount,
                       itemPrice: itemPrice / itemCount,
                       totalPrice: itemPrice,
+                      totalCalorificValue: calories,
+                      finalCookingTime: time
                     };
                     setCart((prevCart) => [...prevCart, cartItem]);
-                    
+
                     setSecondTitle("");
                     setShapes([]);
                     setThirdTitle("");
@@ -227,20 +365,34 @@ export default function Home() {
               cart.map((c) => (
                 <div className="bg-white p-4 m-4">
                   <ul>
-                    <li className="text-black">Reciepe : {c.eatable}</li>
+                    <li className="text-black">Reciepe : {c.dish}</li>
                     <li className="text-black">Shape : {c.shape}</li>
-                    <li className="text-black">Add-on : {c.addon}</li>
-                    <li className="text-black">Quantity : {c.quantity}</li>
-                    <li className="text-black">Price of each : {c.itemPrice}</li>
+                    <li className="text-black">Add-on : {c.addons}</li>
+                    <li className="text-black">Quantity : {c.noOfPieces}</li>
+                    <li className="text-black">
+                      Price of each : {c.itemPrice}
+                    </li>
                     <li className="text-black">
                       Price of {c.quantity} : {c.totalPrice}
                     </li>
                   </ul>
                 </div>
               ))}
-              <h1 className="text-black text-center font-bolded text-l mb-5">
+            <h1 className="text-black text-center font-bolded text-l mb-5">
               Grand Total : {grandTotal}
             </h1>
+            <div>
+              <button onClick={async()=>{
+                console.log(cart);
+                const response = await axios({
+                  method: "POST",
+                  url: "http://localhost:8000/api/order/array",
+                  data: cart
+                });
+              }} className="bg-green-600 hover:bg-green-500 text-white py-4 px-8 rounded-lg mt-2">
+                Buy Now
+              </button>
+            </div>
           </div>
         </div>
       </div>
