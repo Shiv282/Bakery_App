@@ -292,6 +292,7 @@ export default function Home() {
                     setTimeEatable(eatable.cookingTime);
                     setActiveEatable(eatable.dishName);
                     setActiveEatablePrice(eatable.price);
+                    
                     setAddons([]);
                     setThirdTitle("");
                     setFourthTitle("");
@@ -483,6 +484,9 @@ export default function Home() {
                 setFourthTitle("");
                 setItemPrice(0);
                 setItemCount(0);
+                setActiveAddon([]);
+                    setActiveShape('');
+                    setActiveEatable('');
               }}
             >
               Add to cart
